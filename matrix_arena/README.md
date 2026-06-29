@@ -259,9 +259,27 @@ The nonlinear component is **weak and restricted** (tanh with small coefficients
 - Reading from the filesystem during `solve()` or `attack()` (no cached data).
 - Sharing state between duel rounds.
 - Using `Y_gt` in `attack()` — you do not receive it and must not reconstruct it there.
+- Reconstructing the hidden matrix instead of predicting it — e.g. calling
+  `generate_instance(seed, budget)`, or brute-forcing which generation seed
+  reproduces the visible `X`. See the note below.
 - Exceeding time limits (solve_timeout_s, attack_timeout_s).
 - Returning NaN, Inf, or arrays with `|v| > 1e5`.
 - Returning invalid masks (wrong shape, wrong sums, disconnected).
+
+### The `seed` argument is decoupled from the instance
+
+The `seed` passed to `solve()`/`attack()` exists only so your own randomness can
+be deterministic — it is **not** the seed used to build the instance. The grader
+derives it from the (private) generation seed through a one-way function, and the
+graded evaluation draws **secret, high-entropy generation seeds** that are never
+exposed and cannot be brute-forced from the visible `X`. Attempts to rebuild
+`Y_gt` from `seed` or by matching the generator against `X` fail on the real
+grader (they produce an unrelated matrix) and only waste your time budget.
+
+> **For grader operators.** The hidden evaluation must set `MATRIX_ARENA_SEED_KEY`
+> (and ideally `MATRIX_ARENA_SALT`) to secret values, and should run each agent in
+> an isolated subprocess so it cannot read `Y_gt` from the grader's memory. See
+> [`src/matrix_arena/seeds.py`](src/matrix_arena/seeds.py).
 
 ---
 

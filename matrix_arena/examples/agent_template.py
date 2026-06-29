@@ -2,6 +2,13 @@
 
 Participants must submit a single Python file containing a class called Agent
 with two methods: solve() and attack().
+
+Note on ``seed``: it is a per-call seed provided only so your own randomness can
+be deterministic (the grader rewards reproducibility). It is NOT the seed used
+to generate the instance — it is decoupled by a one-way function, and the graded
+evaluation uses secret high-entropy generation seeds. Do not try to rebuild the
+hidden matrix from ``seed`` or by brute-forcing the generator against the visible
+``X``: it will not work on the real grader and only hurts your score.
 """
 import numpy as np
 

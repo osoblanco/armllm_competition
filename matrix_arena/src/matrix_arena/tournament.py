@@ -6,6 +6,7 @@ from .instance import generate_instance, BudgetConfig
 from .masks import generate_official_mask
 from .scoring import nrmse_hidden, safe_nrmse, INVALID_LOSS
 from .api import call_solve, call_attack
+from .seeds import resolve_generation_seed, derive_agent_seed
 
 EPS: float = 1e-4
 ATTACK_PENALTY: float = 0.5
@@ -58,18 +59,22 @@ def run_duel(
             "attack_A_used_official", "attack_B_used_official",
         }
     """
-    X, Z, Y_gt = generate_instance(seed, budget)
+    # The generation seed is private to the grader; agents only ever receive
+    # decoupled, one-way-derived seeds (see matrix_arena.seeds) so they cannot
+    # rebuild Y_gt via generate_instance.
+    gen_seed = resolve_generation_seed(seed)
+    X, Z, Y_gt = generate_instance(gen_seed, budget)
     k = budget["k"]
 
-    # Attack phase — use distinct seeds for A and B to avoid correlations
-    attack_seed_A = seed * 1000 + 1
-    attack_seed_B = seed * 1000 + 2
+    # Attack phase — distinct decoupled seeds for A and B.
+    attack_seed_A = derive_agent_seed(gen_seed, "attack_A")
+    attack_seed_B = derive_agent_seed(gen_seed, "attack_B")
 
     attack_res_A = call_attack(agent_A, X, Z, k, budget, attack_seed_A)
     attack_res_B = call_attack(agent_B, X, Z, k, budget, attack_seed_B)
 
     # Fall back to official mask when attack is invalid
-    official = generate_official_mask(X, Z, k, seed=seed)
+    official = generate_official_mask(X, Z, k, seed=gen_seed)
     mask_for_B = attack_res_A.mask if attack_res_A.valid else official
     mask_for_A = attack_res_B.mask if attack_res_B.valid else official
 
@@ -78,12 +83,13 @@ def run_duel(
     penalty_A = ATTACK_PENALTY if not attack_res_A.valid else 0.0
     penalty_B = ATTACK_PENALTY if not attack_res_B.valid else 0.0
 
-    # Solve phase
+    # Solve phase — both agents get the same decoupled solve seed.
+    solve_seed = derive_agent_seed(gen_seed, "solve")
     Y_obs_A = np.where(mask_for_A, Y_gt, 0.0)
     Y_obs_B = np.where(mask_for_B, Y_gt, 0.0)
 
-    solve_res_A = call_solve(agent_A, X, Z, Y_obs_A, mask_for_A, budget, seed)
-    solve_res_B = call_solve(agent_B, X, Z, Y_obs_B, mask_for_B, budget, seed)
+    solve_res_A = call_solve(agent_A, X, Z, Y_obs_A, mask_for_A, budget, solve_seed)
+    solve_res_B = call_solve(agent_B, X, Z, Y_obs_B, mask_for_B, budget, solve_seed)
 
     # Compute raw losses
     raw_loss_A = (
@@ -123,7 +129,7 @@ def run_duel(
             "Y_hat_B": solve_res_B.Y_hat if solve_res_B.valid else None,
             "raw_loss_A": raw_loss_A,
             "raw_loss_B": raw_loss_B,
-            "regime": get_regime(seed),
+            "regime": get_regime(gen_seed),
             "k": k,
             "budget_name": budget["name"],
             # An attack is "used official" when the opponent's attack was invalid

@@ -5,6 +5,7 @@ from .instance import generate_instance, BudgetConfig, SMALL, MEDIUM, LARGE
 from .masks import generate_official_mask
 from .scoring import nrmse_hidden, safe_nrmse, solve_score_instance, INVALID_LOSS
 from .api import call_solve
+from .seeds import resolve_generation_seed, derive_agent_seed
 
 
 class _MeanBaseline:
@@ -49,9 +50,15 @@ def run_solve_evaluation(
         bname = budget["name"]
         bw = budget_weights.get(bname, 1.0 / max(len(budgets), 1))
 
-        for seed in seeds:
-            X, Z, Y_gt = generate_instance(seed, budget)
-            official_mask = generate_official_mask(X, Z, budget["k"], seed=seed)
+        for index in seeds:
+            # The generation seed is private to the grader; agents receive only a
+            # decoupled per-call seed (see matrix_arena.seeds) so they cannot
+            # rebuild Y_gt via generate_instance.
+            gen_seed = resolve_generation_seed(index)
+            agent_seed = derive_agent_seed(gen_seed, "solve")
+
+            X, Z, Y_gt = generate_instance(gen_seed, budget)
+            official_mask = generate_official_mask(X, Z, budget["k"], seed=gen_seed)
             Y_obs = np.where(official_mask, Y_gt, 0.0)
 
             # Mean baseline prediction for scoring reference
@@ -59,7 +66,7 @@ def run_solve_evaluation(
             Y_mean = np.full_like(Y_gt, mean_val)
 
             for agent, name in zip(agents, agent_names):
-                res = call_solve(agent, X, Z, Y_obs, official_mask, budget, seed)
+                res = call_solve(agent, X, Z, Y_obs, official_mask, budget, agent_seed)
                 s = stats[name]
 
                 if res.crashed:
