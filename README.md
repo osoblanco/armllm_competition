@@ -58,7 +58,9 @@ class Agent:
 ```
 
 Submit through the form linked on the
-[competition page](https://armllm.github.io/2026/competition).
+[competition page](https://armllm.github.io/2026/competition). **The final day for
+submissions is July 5, 2026** (end of day, Yerevan time); you may resubmit until
+then, and the latest valid submission counts.
 
 ## Questions
 
