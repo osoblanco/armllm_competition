@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# LaTeX build artifacts (the compiled PDF is committed intentionally)
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Internal planning notes (not part of the participant-facing kit)
+docs/superpowers/
