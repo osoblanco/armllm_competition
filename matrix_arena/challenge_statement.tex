@@ -358,6 +358,17 @@ class Agent:
         """
 \end{lstlisting}
 
+\paragraph{The \texttt{seed} argument is decoupled from the instance.}
+The \texttt{seed} passed to \texttt{solve} and \texttt{attack} exists only so
+that an agent's own randomness can be made deterministic. It is \emph{not} the
+seed used to generate the instance: the grader derives it from the (private)
+generation seed through a one-way function, and the graded evaluation draws
+secret, high-entropy generation seeds that are never exposed. Consequently an
+agent cannot rebuild $Y^*$ by calling the public generator on \texttt{seed}, nor
+by brute-forcing which generation seed reproduces the fully-visible $X$. Such
+attempts fail on the real grader --- they produce an unrelated matrix --- and
+merely waste the agent's time budget.
+
 % ============================================================
 \section{Validity and Robustness Constraints}
 % ============================================================
@@ -383,6 +394,22 @@ $\delta = 0.5$ added to the attacking agent's final loss for that duel.
 
 Agents exceeding \texttt{solve\_timeout\_s} or \texttt{attack\_timeout\_s} are
 penalized as if they returned an invalid result.
+
+\subsection{Fair play: no instance reconstruction}
+
+The task is to \emph{predict} the hidden entries, not to recover the instance.
+The following are forbidden and do not work against the graded evaluation:
+\begin{itemize}
+  \item Rebuilding $Y^*$ by calling the public generator on the provided
+        \texttt{seed} (the seed is decoupled; see the Participant API section).
+  \item Recovering the generation seed by brute-forcing which seed reproduces
+        the visible $X$ (the graded evaluation uses secret, high-entropy
+        generation seeds, so the search space is intractable).
+  \item Reading $Y^*$ out of the grader's process memory. The hidden grader runs
+        each agent in an isolated subprocess.
+\end{itemize}
+Agents must use only their declared inputs ($X$, $Z$, $Y^{\text{obs}}$, $M$,
+\texttt{budget}, \texttt{seed}) to form a prediction.
 
 % ============================================================
 \section{Suggested Tactics}
@@ -433,12 +460,17 @@ $r_{\text{nl}} \leq 6$ terms. The task is robust prediction, not exact nonlinear
 \section{Reproducibility and Deterministic Grading}
 % ============================================================
 
-All randomness is controlled by explicit seeds via \texttt{numpy.random.default\_rng(seed)}.
-There is no global random state. Running the grader twice with the same seeds produces
-identical results.
+All randomness is controlled by explicit seeds via \texttt{numpy.random.default\_rng}.
+There is no global random state. Running the grader twice on the same instances
+produces identical results.
 
-Participants must ensure their agents are deterministic given the same \texttt{seed}
-argument. Non-deterministic outputs are detected and penalized.
+The grader separates two seeds. The \emph{generation seed} builds
+$(X, Z, Y^*)$ and is private to the grader; in the graded evaluation it is drawn
+with high entropy and never exposed. The \emph{agent seed} passed to
+\texttt{solve}/\texttt{attack} is a one-way-derived value, decoupled from the
+generation seed, provided solely so an agent's own randomness can be
+deterministic. Participants must ensure their agents are deterministic given the
+same agent seed; non-deterministic outputs are detected and penalized.
 
 % ============================================================
 \section{Baselines}
